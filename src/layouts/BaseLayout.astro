@@ -1,0 +1,135 @@
+---
+import '../styles/global.css';
+import { SITE_NAME, SITE_DESCRIPTION, href, absoluteUrl, getArticles } from '../lib/site';
+import { categories } from '../data/taxonomy.mjs';
+
+export interface Crumb { name: string; path: string }
+
+interface Props {
+  title: string;
+  description?: string;
+  /** Site-relative path of this page, e.g. "/java-hashmap". */
+  path: string;
+  breadcrumbs?: Crumb[];
+  jsonLd?: Record<string, unknown>[];
+  noindex?: boolean;
+  ogType?: 'website' | 'article';
+  modified?: Date;
+}
+
+const {
+  title,
+  description = SITE_DESCRIPTION,
+  path,
+  breadcrumbs = [],
+  jsonLd = [],
+  noindex = false,
+  ogType = 'website',
+  modified,
+} = Astro.props;
+
+const fullTitle = path === '/' ? `${SITE_NAME} — ${title}` : `${title} | ${SITE_NAME}`;
+const canonical = absoluteUrl(path, Astro.site);
+// Only link categories that have published articles (no links to empty hubs).
+const articles = await getArticles();
+const navCategories = categories.filter((c) => c.nav && articles.some((a) => a.data.category === c.slug));
+
+const crumbLd = breadcrumbs.length
+  ? [{
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [{ name: 'Home', path: '/' }, ...breadcrumbs].map((c, i) => ({
+        '@type': 'ListItem',
+        position: i + 1,
+        name: c.name,
+        item: absoluteUrl(c.path, Astro.site),
+      })),
+    }]
+  : [];
+const structured = [...jsonLd, ...crumbLd];
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex, follow" />}
+    <meta name="color-scheme" content="light dark" />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    {modified && <meta property="article:modified_time" content={modified.toISOString()} />}
+    <link rel="icon" href={href('/favicon.svg')} type="image/svg+xml" />
+    <link rel="sitemap" type="application/xml" href={href('/sitemap.xml')} />
+    <link rel="alternate" type="application/rss+xml" title={`${SITE_NAME} updates`} href={href('/rss.xml')} />
+    {structured.map((obj) => <script type="application/ld+json" set:html={JSON.stringify(obj)} />)}
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href={href('/')}><span class="brand-mark" aria-hidden="true">◆</span> {SITE_NAME}</a>
+        <nav aria-label="Primary">
+          <ul class="nav">
+            <li><a href={href('/knowledge')}>Knowledge</a></li>
+            <li><a href={href('/prompts')}>Prompt Library</a></li>
+            <li><a href={href('/checklists')}>Review Checklists</a></li>
+            <li><a href={href('/vibe-assist-demo')}>Demo</a></li>
+            <li><a href={href('/search')}>Search</a></li>
+          </ul>
+        </nav>
+      </div>
+    </header>
+
+    {breadcrumbs.length > 0 && (
+      <nav class="wrap breadcrumbs" aria-label="Breadcrumb">
+        <ol>
+          <li><a href={href('/')}>Home</a></li>
+          {breadcrumbs.map((c, i) =>
+            i === breadcrumbs.length - 1
+              ? <li><span aria-current="page">{c.name}</span></li>
+              : <li><a href={href(c.path)}>{c.name}</a></li>
+          )}
+        </ol>
+      </nav>
+    )}
+
+    <main id="main" class="wrap">
+      <slot />
+    </main>
+
+    <footer class="site-footer">
+      <div class="wrap footer-grid">
+        <div>
+          <p class="footer-title">{SITE_NAME}</p>
+          <p>Engineering knowledge for developers who review the work of AI coding agents. Understand → Learn → Review → Apply → Prompt.</p>
+        </div>
+        <nav aria-label="Categories">
+          <p class="footer-title">Knowledge</p>
+          <ul>
+            {navCategories.map((c) => <li><a href={href('/' + c.slug)}>{c.name}</a></li>)}
+          </ul>
+        </nav>
+        <nav aria-label="Site">
+          <p class="footer-title">Site</p>
+          <ul>
+            <li><a href={href('/prompts')}>Prompt Library</a></li>
+            <li><a href={href('/checklists')}>Review Checklists</a></li>
+            <li><a href={href('/copilot-agent')}>Copilot agent guide</a></li>
+            <li><a href={href('/about')}>About &amp; Sources</a></li>
+            <li><a href={href('/sitemap.xml')}>Sitemap</a></li>
+          </ul>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

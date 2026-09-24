@@ -1,0 +1,16 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { Content } from '../../docs/copilot-agent.md';
+---
+<BaseLayout
+  title="Use Vibe Knowledge With a Copilot Agent"
+  description="How to configure a Microsoft Copilot agent that uses Vibe Knowledge as a public website knowledge source: instructions, output format and indexing tips."
+  path="/copilot-agent"
+  breadcrumbs={[{ name: 'Copilot agent guide', path: '/copilot-agent' }]}
+>
+  <article class="prose">
+    <h1>Use Vibe Knowledge With a Copilot Agent</h1>
+    <p class="lede">Vibe Knowledge is designed as a grounding source for an LLM agent: static pages, one concept per short URL, structured review checklists and prompt patterns.</p>
+    <Content />
+  </article>
+</BaseLayout>

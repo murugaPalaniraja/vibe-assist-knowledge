@@ -1,0 +1,14 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { href } from '../lib/site';
+---
+<BaseLayout title="Page Not Found" description="This Vibe Knowledge page does not exist. Browse the knowledge base, prompt library or review checklists instead." path="/404" noindex>
+  <h1>Page Not Found</h1>
+  <p class="lede">That page doesn't exist, or it may have moved to a new short URL.</p>
+  <ul>
+    <li><a href={href('/knowledge')}>Browse all knowledge</a></li>
+    <li><a href={href('/prompts')}>Prompt Library</a></li>
+    <li><a href={href('/checklists')}>Review Checklists</a></li>
+    <li><a href={href('/search')}>Search</a></li>
+  </ul>
+</BaseLayout>

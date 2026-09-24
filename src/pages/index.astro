@@ -1,0 +1,70 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ArticleCards from '../components/ArticleCards.astro';
+import { buildRouteTable, href, slugOf, absoluteUrl, SITE_NAME, SITE_DESCRIPTION, SITE_TAGLINE } from '../lib/site';
+
+const { articles, prompts, usedCategories, techs } = await buildRouteTable();
+const featuredSlugs = ['spring-security-jwt', 'redis-caching', 'database-transactions', 'ai-agents', 'java-hashmap', 'python-generators'];
+const featured = featuredSlugs.map((s) => articles.find((a) => slugOf(a) === s)).filter((a) => a !== undefined);
+const checklists = articles.filter((a) => a.data.review_checklist.length > 0).length;
+
+const jsonLd = [{
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: SITE_NAME,
+  url: absoluteUrl('/', Astro.site),
+  description: SITE_DESCRIPTION,
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: absoluteUrl('/search', Astro.site) + '?q={search_term_string}',
+    'query-input': 'required name=search_term_string',
+  },
+}];
+---
+<BaseLayout title={SITE_TAGLINE} description={SITE_DESCRIPTION} path="/" jsonLd={jsonLd}>
+  <section class="hero">
+    <h1>Understand what your AI coding agent built</h1>
+    <p class="lede">{SITE_NAME} explains the engineering concepts behind agent-written code, tells you what to review, and gives you master prompts for the next round with the agent.</p>
+    <ol class="flow" aria-label="The Vibe-Assist method">
+      <li>Understand</li><li>Learn</li><li>Review</li><li>Apply</li><li>Prompt</li>
+    </ol>
+    <p class="muted small">{articles.length} knowledge articles · {checklists} coding-agent review checklists · {prompts.length} prompt patterns</p>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Start Here</h2>
+      <a href={href('/vibe-assist-demo')}>See a full worked example →</a>
+    </div>
+    <ArticleCards articles={featured} />
+  </section>
+
+  <section>
+    <h2>Browse by Category</h2>
+    <ul class="card-grid">
+      {usedCategories.map((c) => (
+        <li class="card">
+          <h3><a href={href('/' + c.slug)}>{c.name}</a></h3>
+          <p>{c.description}</p>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section>
+    <h2>Browse by Technology</h2>
+    <ul class="meta-row">
+      {techs.map((t) => <li><a class="pill" href={href('/' + t.slug)}>{t.name}</a></li>)}
+    </ul>
+  </section>
+
+  <section>
+    <h2>How to Use Vibe Knowledge With a Coding Agent</h2>
+    <ol>
+      <li><strong>Paste the agent's summary</strong> of what it changed into the Vibe-Assist Copilot agent (or read along yourself).</li>
+      <li><strong>Understand</strong> each concept it touched: every article opens with a plain-language definition and how it works.</li>
+      <li><strong>Review</strong> the diff with the article's <a href={href('/checklists')}>coding-agent review checklist</a>, separating confirmed problems from potential risks.</li>
+      <li><strong>Prompt</strong> the agent again with a pattern from the <a href={href('/prompts')}>Prompt Library</a> so it verifies and fixes its own work.</li>
+    </ol>
+  </section>
+</BaseLayout>

@@ -1,0 +1,165 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import {
+  type Article, type PromptPattern,
+  href, absoluteUrl, slugOf, describe, categoryOf, checklistItems, resolveRelated, techSlug, SITE_NAME,
+} from '../lib/site';
+
+interface Props { article: Article; articles: Article[]; prompts: PromptPattern[] }
+const { article, articles, prompts } = Astro.props;
+const d = article.data;
+const slug = slugOf(article);
+const path = '/' + slug;
+const category = categoryOf(d.category);
+const { Content, headings } = await render(article);
+
+// Local/team sources have a repo path instead of a URL: show it as text, not a link.
+const provIsUrl = !!d.provenance && /^https?:\/\//.test(d.provenance.url);
+const checklist = checklistItems(article);
+const promptLinks = resolveRelated(d.prompts, articles, prompts);
+const related = resolveRelated(d.related, articles, prompts);
+// Backlinks: articles that list this one as related (improves internal linking).
+const backlinks = articles
+  .filter((a) => a.data.related.includes(slug) && !d.related.includes(slugOf(a)) && slugOf(a) !== slug)
+  .map((a) => ({ slug: slugOf(a), title: a.data.title, summary: describe(a) }));
+
+const tocExtra = [
+  checklist.length && { depth: 2, slug: 'review-checklist', text: 'Coding-Agent Review Checklist' },
+  (promptLinks.length || d.vibe?.prompt) && { depth: 2, slug: 'master-prompt-patterns', text: 'Master Prompt Patterns' },
+  (related.length || backlinks.length) && { depth: 2, slug: 'related-concepts', text: 'Related Concepts' },
+  (d.sources.length || d.provenance) && { depth: 2, slug: 'sources', text: 'Sources' },
+].filter(Boolean) as { depth: number; slug: string; text: string }[];
+const toc = [...headings.filter((h) => h.depth <= 3), ...tocExtra];
+
+const lenses = d.vibe
+  ? (['understand', 'learn', 'review', 'apply', 'prompt'] as const).filter((k) => d.vibe?.[k]).map((k) => ({ k, v: d.vibe![k]! }))
+  : [];
+
+const jsonLd = [{
+  '@context': 'https://schema.org',
+  '@type': 'TechArticle',
+  headline: d.title,
+  description: describe(article),
+  url: absoluteUrl(path, Astro.site),
+  dateModified: d.updated.toISOString().slice(0, 10),
+  proficiencyLevel: d.difficulty === 'beginner' ? 'Beginner' : 'Expert',
+  keywords: [...d.tags, ...d.concepts].join(', '),
+  about: d.technology.map((t) => ({ '@type': 'Thing', name: t })),
+  isPartOf: { '@type': 'WebSite', name: SITE_NAME, url: absoluteUrl('/', Astro.site) },
+  ...(provIsUrl ? { isBasedOn: d.provenance!.url } : {}),
+}];
+---
+<BaseLayout
+  title={d.title}
+  description={describe(article)}
+  path={path}
+  ogType="article"
+  modified={d.updated}
+  noindex={!d.index}
+  jsonLd={jsonLd}
+  breadcrumbs={[
+    { name: 'Knowledge', path: '/knowledge' },
+    { name: category.name, path: '/' + category.slug },
+    { name: d.title, path },
+  ]}
+>
+  <article class="article-grid">
+    <div class="prose">
+      <header>
+        <h1>{d.title}</h1>
+        <p class="lede">{d.summary}</p>
+        <ul class="meta-row" aria-label="Article metadata">
+          <li><a class="pill accent" href={href('/' + category.slug)}>{category.name}</a></li>
+          {d.technology.map((t) => {
+            const ts = techSlug(t);
+            return <li>{ts ? <a class="pill" href={href('/' + ts)}>{t}</a> : <span class="pill">{t}</span>}</li>;
+          })}
+          <li><span class="pill">Level: {d.difficulty}</span></li>
+          <li><span class="pill">Updated <time datetime={d.updated.toISOString().slice(0, 10)}>{d.updated.toISOString().slice(0, 10)}</time></span></li>
+        </ul>
+      </header>
+
+      {d.origin === 'ingested' && d.provenance && (
+        <aside class="callout" aria-label="Source attribution">
+          <strong>{d.provenance.publish_mode === 'excerpt' ? 'Reference note, not original Vibe content.' : 'Imported from an approved source.'}</strong> This page was derived from
+          {' '}{provIsUrl ? <a href={d.provenance.url} rel="nofollow noopener">{d.provenance.name}</a> : <span>{d.provenance.name}</span>}
+          {' '}(license: {d.provenance.license}), retrieved {d.provenance.retrieved_at.toISOString().slice(0, 10)}
+          {' '}by the Vibe-Assist ingestion pipeline. Read the original for the authoritative version.
+        </aside>
+      )}
+
+      {lenses.length > 0 && (
+        <section aria-labelledby="vibe-lenses">
+          <h2 id="vibe-lenses">Vibe-Assist at a Glance</h2>
+          <ul class="lenses">
+            {lenses.map(({ k, v }) => <li><strong>{k}</strong>{v}</li>)}
+          </ul>
+        </section>
+      )}
+
+      {d.concepts.length > 0 && (
+        <p class="small muted"><strong>Key concepts:</strong> {d.concepts.join(' · ')}</p>
+      )}
+
+      <Content />
+
+      {checklist.length > 0 && (
+        <section aria-labelledby="review-checklist">
+          <h2 id="review-checklist">Coding-Agent Review Checklist</h2>
+          <p>Use this when an AI coding agent adds or changes code involving <strong>{d.title}</strong>. Check each item against the actual diff; mark findings as <em>confirmed</em>, <em>potential risk</em> or <em>needs verification</em>.</p>
+          <ul class="checklist">
+            {checklist.map((c) => <li>{c.item}{c.why && <span class="why">{c.why}</span>}</li>)}
+          </ul>
+        </section>
+      )}
+
+      {(promptLinks.length > 0 || d.vibe?.prompt) && (
+        <section aria-labelledby="master-prompt-patterns">
+          <h2 id="master-prompt-patterns">Master Prompt Patterns</h2>
+          {d.vibe?.prompt && <p>{d.vibe.prompt}</p>}
+          {promptLinks.length > 0 && (
+            <ul>
+              {promptLinks.map((p) => <li><a href={href('/' + p.slug)}>{p.title}</a> — {p.summary}</li>)}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {(related.length > 0 || backlinks.length > 0) && (
+        <section aria-labelledby="related-concepts">
+          <h2 id="related-concepts">Related Concepts</h2>
+          <ul>
+            {[...related, ...backlinks].map((r) => <li><a href={href('/' + r.slug)}>{r.title}</a> — {r.summary}</li>)}
+          </ul>
+        </section>
+      )}
+
+      {(d.sources.length > 0 || d.provenance) && (
+        <section aria-labelledby="sources">
+          <h2 id="sources">Sources</h2>
+          <ul>
+            {d.provenance && (
+              <li>
+                {provIsUrl ? <a href={d.provenance.url} rel="nofollow noopener">{d.provenance.name}</a> : <span>{d.provenance.name}</span>}
+                {' '}— {d.provenance.source_type}, license {d.provenance.license}, retrieved {d.provenance.retrieved_at.toISOString().slice(0, 10)}
+              </li>
+            )}
+            {d.sources.map((s) => (
+              <li><a href={s.url} rel="noopener">{s.title}</a>{s.license && <span class="muted"> — {s.license}</span>}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+
+    <nav class="toc" aria-label="On this page">
+      <div class="toc-inner">
+        <p class="toc-title">On this page</p>
+        <ol>
+          {toc.map((h) => <li class={`lvl-${h.depth}`}><a href={`#${h.slug}`}>{h.text}</a></li>)}
+        </ol>
+      </div>
+    </nav>
+  </article>
+</BaseLayout>

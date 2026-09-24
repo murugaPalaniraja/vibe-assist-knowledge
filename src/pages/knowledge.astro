@@ -1,0 +1,34 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ArticleCards from '../components/ArticleCards.astro';
+import { buildRouteTable, href } from '../lib/site';
+
+const { articles, usedCategories, techs } = await buildRouteTable();
+---
+<BaseLayout
+  title="Software Engineering Knowledge Base"
+  description="All Vibe Knowledge articles by category: programming, backend, databases, DevOps, security, architecture and AI engineering, each with review checklists."
+  path="/knowledge"
+  breadcrumbs={[{ name: 'Knowledge', path: '/knowledge' }]}
+>
+  <h1>Software Engineering Knowledge Base</h1>
+  <p class="lede">Every article explains one engineering concept through five lenses — Understand, Learn, Review, Apply and Prompt — so you can check what an AI coding agent did and ask it for the right next step.</p>
+
+  <nav aria-label="Technologies">
+    <h2>Technologies</h2>
+    <ul class="meta-row">
+      {techs.map((t) => <li><a class="pill" href={href('/' + t.slug)}>{t.name}</a></li>)}
+    </ul>
+  </nav>
+
+  {usedCategories.map((c) => (
+    <section>
+      <div class="section-head">
+        <h2 id={c.slug}>{c.name}</h2>
+        <a href={href('/' + c.slug)}>All {c.name} →</a>
+      </div>
+      <p class="muted">{c.description}</p>
+      <ArticleCards articles={articles.filter((a) => a.data.category === c.slug)} />
+    </section>
+  ))}
+</BaseLayout>

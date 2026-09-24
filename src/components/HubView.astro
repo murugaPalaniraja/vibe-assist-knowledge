@@ -1,0 +1,65 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import ArticleCards from './ArticleCards.astro';
+import { type Article, type PromptPattern, href, slugOf, absoluteUrl, categoryOf, SITE_NAME } from '../lib/site';
+
+interface Props {
+  kind: 'category' | 'technology';
+  slug: string;
+  name: string;
+  description: string;
+  articles: Article[];
+  prompts: PromptPattern[];
+}
+const { kind, slug, name, description, articles, prompts } = Astro.props;
+const path = '/' + slug;
+
+// Category hubs group by technology; technology hubs group by category.
+const groups = new Map<string, Article[]>();
+for (const a of articles) {
+  const keys = kind === 'category'
+    ? (a.data.technology.length ? [a.data.technology[0]] : ['General'])
+    : [categoryOf(a.data.category).name];
+  for (const k of keys) groups.set(k, [...(groups.get(k) ?? []), a]);
+}
+const grouped = [...groups.entries()].sort(([a], [b]) => a.localeCompare(b));
+const title = kind === 'category' ? `${name} Knowledge` : `${name} Knowledge for AI-Assisted Development`;
+const checklistCount = articles.filter((a) => a.data.review_checklist.length > 0).length;
+
+const jsonLd = [{
+  '@context': 'https://schema.org',
+  '@type': 'CollectionPage',
+  name: title,
+  description,
+  url: absoluteUrl(path, Astro.site),
+  isPartOf: { '@type': 'WebSite', name: SITE_NAME, url: absoluteUrl('/', Astro.site) },
+  hasPart: articles.map((a) => ({ '@type': 'TechArticle', headline: a.data.title, url: absoluteUrl('/' + slugOf(a), Astro.site) })),
+}];
+---
+<BaseLayout
+  title={title}
+  description={description}
+  path={path}
+  jsonLd={jsonLd}
+  breadcrumbs={[{ name: 'Knowledge', path: '/knowledge' }, { name, path }]}
+>
+  <h1>{title}</h1>
+  <p class="lede">{description}</p>
+  <p class="muted small">{articles.length} article{articles.length === 1 ? '' : 's'} · {checklistCount} coding-agent review checklist{checklistCount === 1 ? '' : 's'} · {prompts.length} prompt pattern{prompts.length === 1 ? '' : 's'}</p>
+
+  {grouped.map(([group, list]) => (
+    <section>
+      <h2>{group}</h2>
+      <ArticleCards articles={list} />
+    </section>
+  ))}
+
+  {prompts.length > 0 && (
+    <section>
+      <h2>{name} Prompt Patterns</h2>
+      <ul>
+        {prompts.map((p) => <li><a href={href('/' + slugOf(p))}>{p.data.title}</a> — {p.data.purpose}</li>)}
+      </ul>
+    </section>
+  )}
+</BaseLayout>

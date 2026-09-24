@@ -1,0 +1,41 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getArticles, href, slugOf, categoryOf, checklistItems, categories } from '../lib/site';
+
+const articles = (await getArticles()).filter((a) => a.data.review_checklist.length > 0);
+const groups = categories
+  .map((c) => ({ ...c, items: articles.filter((a) => a.data.category === c.slug) }))
+  .filter((g) => g.items.length > 0);
+---
+<BaseLayout
+  title="Coding-Agent Review Checklists"
+  description="Checklists for reviewing code written by AI coding agents: JWT security, Redis caching, transactions, indexing, Docker, Kubernetes, concurrency and more."
+  path="/checklists"
+  breadcrumbs={[{ name: 'Review Checklists', path: '/checklists' }]}
+>
+  <h1>Coding-Agent Review Checklists</h1>
+  <p class="lede">When a coding agent says “implemented X”, these are the things a senior engineer would inspect before trusting it. Each checklist links to the full article that explains why each item matters.</p>
+  <div class="callout info">
+    Classify each finding honestly: <strong>Confirmed</strong> (you can see it in the diff or a failing test), <strong>Potential risk</strong> (plausible from the change, not yet shown) or <strong>Needs verification</strong> (the summary doesn't say, so you have to check).
+  </div>
+
+  <nav aria-label="Checklist index">
+    <ul class="meta-row">
+      {articles.map((a) => <li><a class="pill" href={`#${slugOf(a)}`}>{a.data.title}</a></li>)}
+    </ul>
+  </nav>
+
+  {groups.map((g) => (
+    <section>
+      <h2>{g.name}</h2>
+      {g.items.map((a) => (
+        <section>
+          <h3 id={slugOf(a)}><a href={href('/' + slugOf(a))}>{a.data.title}</a> review</h3>
+          <ul class="checklist">
+            {checklistItems(a).map((c) => <li>{c.item}{c.why && <span class="why">{c.why}</span>}</li>)}
+          </ul>
+        </section>
+      ))}
+    </section>
+  ))}
+</BaseLayout>

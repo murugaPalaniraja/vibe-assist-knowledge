@@ -1,0 +1,41 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { getPrompts, href, slugOf, promptCategories } from '../lib/site';
+
+const prompts = await getPrompts();
+const groups = promptCategories
+  .map((c) => ({ ...c, items: prompts.filter((p) => p.data.category === c.slug) }))
+  .filter((g) => g.items.length > 0);
+---
+<BaseLayout
+  title="Master Prompt Library for Coding Agents"
+  description="Engineering prompt patterns for reviewing, fixing, testing and securing code written by AI coding agents. Each pattern lists inputs, checks and output format."
+  path="/prompts"
+  breadcrumbs={[{ name: 'Prompt Library', path: '/prompts' }]}
+>
+  <h1>Master Prompt Library for Coding Agents</h1>
+  <p class="lede">These are not generic chat prompts. Each pattern is an engineering task: it names the inputs you must supply, the checks the agent must perform and the structure of the answer, so the agent's output can be verified.</p>
+  <div class="callout info">
+    <strong>How the Vibe-Assist agent uses these:</strong> it picks the pattern that matches your coding-agent summary, fills the placeholders from your context and the relevant knowledge articles, and hands you a ready-to-paste master prompt.
+  </div>
+
+  <nav aria-label="Prompt categories">
+    <ul class="meta-row">
+      {groups.map((g) => <li><a class="pill" href={`#${g.slug}`}>{g.name}</a></li>)}
+    </ul>
+  </nav>
+
+  {groups.map((g) => (
+    <section>
+      <h2 id={g.slug}>{g.name}</h2>
+      <ul class="card-grid">
+        {g.items.map((p) => (
+          <li class="card">
+            <h3><a href={href('/' + slugOf(p))}>{p.data.title}</a></h3>
+            <p>{p.data.purpose}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+</BaseLayout>

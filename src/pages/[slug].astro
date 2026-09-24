@@ -1,0 +1,41 @@
+---
+// One dynamic route for every content page, so all public URLs stay
+// single-segment: /java-hashmap, /spring-security-jwt, /backend, /java,
+// /security-review-prompt. The hierarchy lives in navigation, not the path.
+import ArticleView from '../components/ArticleView.astro';
+import PromptView from '../components/PromptView.astro';
+import HubView from '../components/HubView.astro';
+import { buildRouteTable, slugOf } from '../lib/site';
+
+export async function getStaticPaths() {
+  const { articles, prompts, usedCategories, techs } = await buildRouteTable();
+  return [
+    ...articles.map((a) => ({ params: { slug: slugOf(a) }, props: { kind: 'article', entry: a, articles, prompts } })),
+    ...prompts.map((p) => ({ params: { slug: slugOf(p) }, props: { kind: 'prompt', entry: p, articles, prompts } })),
+    ...usedCategories.map((c) => ({
+      params: { slug: c.slug },
+      props: {
+        kind: 'category', hub: c, articles, prompts,
+        members: articles.filter((a) => a.data.category === c.slug),
+        hubPrompts: prompts.filter((p) =>
+          articles.some((a) => a.data.category === c.slug && a.data.prompts.includes(slugOf(p)))),
+      },
+    })),
+    ...techs.map((t) => ({
+      params: { slug: t.slug },
+      props: {
+        kind: 'technology', hub: { ...t, description: `Concept explanations, coding-agent review checklists and prompt patterns for ${t.name}.` }, articles, prompts,
+        members: articles.filter((a) => a.data.technology.includes(t.name)),
+        hubPrompts: prompts.filter((p) => p.data.technology.includes(t.name)),
+      },
+    })),
+  ];
+}
+
+const p = Astro.props as any;
+---
+{p.kind === 'article' && <ArticleView article={p.entry} articles={p.articles} prompts={p.prompts} />}
+{p.kind === 'prompt' && <PromptView prompt={p.entry} articles={p.articles} prompts={p.prompts} />}
+{(p.kind === 'category' || p.kind === 'technology') && (
+  <HubView kind={p.kind} slug={p.hub.slug} name={p.hub.name} description={p.hub.description} articles={p.members} prompts={p.hubPrompts} />
+)}

@@ -1,0 +1,62 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { href } from '../lib/site';
+---
+<BaseLayout
+  title="Search Vibe Knowledge"
+  description="Search Vibe Knowledge articles, prompt patterns and technology hubs by title, summary and tag."
+  path="/search"
+  noindex
+  breadcrumbs={[{ name: 'Search', path: '/search' }]}
+>
+  <h1>Search Vibe Knowledge</h1>
+  <p class="muted">Searches titles, summaries and tags. Prefer browsing? See <a href={href('/knowledge')}>all knowledge</a> or the <a href={href('/prompts')}>prompt library</a>.</p>
+  <form role="search" onsubmit="return false">
+    <label for="q" class="small muted">Search term</label>
+    <input id="q" name="q" type="search" class="search-box" placeholder="e.g. jwt, cache invalidation, generators" autocomplete="off" />
+  </form>
+  <p id="status" class="small muted" aria-live="polite"></p>
+  <ul id="results" class="search-results"></ul>
+  <noscript><p>Search needs JavaScript. Every page is also listed in the <a href={href('/knowledge')}>knowledge index</a>.</p></noscript>
+
+  <script is:inline define:vars={{ indexUrl: href('/search-index.json') }}>
+    (function () {
+      var input = document.getElementById('q');
+      var list = document.getElementById('results');
+      var status = document.getElementById('status');
+      var data = null;
+      function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+      function score(r, terms) {
+        var t = r.title.toLowerCase(), s = r.summary.toLowerCase(), g = r.tags.join(' ').toLowerCase(), n = 0;
+        for (var i = 0; i < terms.length; i++) {
+          var q = terms[i], hit = false;
+          if (t.indexOf(q) >= 0) { n += 5; hit = true; }
+          if (g.indexOf(q) >= 0) { n += 3; hit = true; }
+          if (s.indexOf(q) >= 0) { n += 1; hit = true; }
+          if (!hit) return 0;
+        }
+        return n + (r.type === 'article' ? 1 : 0);
+      }
+      function run() {
+        var terms = input.value.toLowerCase().split(/\s+/).filter(Boolean);
+        if (!terms.length) { list.innerHTML = ''; status.textContent = ''; return; }
+        var hits = data.map(function (r) { return [score(r, terms), r]; })
+          .filter(function (x) { return x[0] > 0; })
+          .sort(function (a, b) { return b[0] - a[0]; }).slice(0, 25);
+        status.textContent = hits.length + ' result' + (hits.length === 1 ? '' : 's');
+        list.innerHTML = hits.map(function (x) {
+          var r = x[1];
+          return '<li><a href="' + esc(r.url) + '"><strong>' + esc(r.title) + '</strong></a> <span class="pill">' + esc(r.type) + '</span><br><span class="muted small">' + esc(r.summary) + '</span></li>';
+        }).join('');
+        history.replaceState(null, '', '?q=' + encodeURIComponent(input.value));
+      }
+      fetch(indexUrl).then(function (r) { return r.json(); }).then(function (d) {
+        data = d;
+        var q = new URLSearchParams(location.search).get('q');
+        if (q) { input.value = q; }
+        run();
+        input.addEventListener('input', run);
+      }).catch(function () { status.textContent = 'Search index could not be loaded.'; });
+    })();
+  </script>
+</BaseLayout>

@@ -1,0 +1,25 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+// Single source: the same Markdown is the repository's demo documentation.
+import { Content } from '../../docs/demo-scenario.md';
+import { absoluteUrl, SITE_NAME } from '../lib/site';
+
+const title = 'Vibe-Assist Demo: Reviewing a JWT + Redis Change';
+const description = 'Worked example: a coding agent adds JWT authentication and Redis caching to a Spring Boot + PostgreSQL API, and Vibe-Assist explains, reviews and prompts.';
+const jsonLd = [{
+  '@context': 'https://schema.org',
+  '@type': 'TechArticle',
+  headline: title,
+  description,
+  url: absoluteUrl('/vibe-assist-demo', Astro.site),
+  isPartOf: { '@type': 'WebSite', name: SITE_NAME, url: absoluteUrl('/', Astro.site) },
+}];
+---
+<BaseLayout title={title} description={description} path="/vibe-assist-demo" ogType="article" jsonLd={jsonLd}
+  breadcrumbs={[{ name: 'Demo', path: '/vibe-assist-demo' }]}>
+  <article class="prose">
+    <h1>{title}</h1>
+    <p class="lede">{description}</p>
+    <Content />
+  </article>
+</BaseLayout>
